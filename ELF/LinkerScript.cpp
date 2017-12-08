@@ -657,6 +657,8 @@ void LinkerScript::assignOffsets(OutputSection *Sec) {
     Dot = 0;
   else if (Sec->AddrExpr)
     setDot(Sec->AddrExpr, Sec->Location, false);
+  else
+    advance(0, Sec->Alignment);
 
   Ctx->MemRegion = Sec->MemRegion;
   if (Ctx->MemRegion)
