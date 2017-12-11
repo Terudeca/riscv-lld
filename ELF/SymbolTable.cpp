@@ -74,6 +74,12 @@ template <class ELFT> void SymbolTable::addFile(InputFile *File) {
     return;
   }
 
+  // --just-symbols file
+  if (auto *F = dyn_cast<JustSymbolsFile<ELFT>>(File)) {
+    F->parse();
+    return;
+  }
+
   // .a file
   if (auto *F = dyn_cast<ArchiveFile>(File)) {
     F->parse<ELFT>();

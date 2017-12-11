@@ -1004,6 +1004,38 @@ template <class ELFT> void BinaryFile::parse() {
                            Data.size(), 0, STB_GLOBAL, nullptr, nullptr);
 }
 
+template <class ELFT> void JustSymbolsFile<ELFT>::parse() {
+  typedef typename ELFT::Shdr Elf_Shdr;
+  typedef typename ELFT::Sym Elf_Sym;
+  typedef typename ELFT::SymRange Elf_Sym_Range;
+
+  StringRef ObjName = this->getName();
+  ELFFile<ELFT> Obj = this->getObj();
+
+  if (Obj.getHeader()->e_type != ET_EXEC)
+    error(toString(this) + ": --just-symbols only accepts ET_EXEC files");
+
+  ArrayRef<Elf_Shdr> Sections = CHECK(Obj.sections(), ObjName);
+
+  for (const Elf_Shdr &Sec : Sections) {
+    if (Sec.sh_type != SHT_SYMTAB)
+      continue;
+
+    Elf_Sym_Range Syms = CHECK(Obj.symbols(&Sec), ObjName);
+    uint32_t FirstNonLocal = Sec.sh_info;
+    StringRef StringTable =
+        CHECK(Obj.getStringTableForSymtab(Sec, Sections), ObjName);
+
+    for (const Elf_Sym &Sym : Syms.slice(FirstNonLocal))
+      if (Sym.st_shndx != SHN_UNDEF) {
+        StringRef SymName = CHECK(Sym.getName(StringTable), ObjName);
+        Symtab->addRegular<ELFT>(SymName, Sym.st_other, Sym.getType(),
+                                 Sym.st_value, Sym.st_size, Sym.getBinding(),
+                                 nullptr, nullptr);
+      }
+  }
+}
+
 static bool isBitcode(MemoryBufferRef MB) {
   using namespace sys::fs;
   return identify_magic(MB.getBuffer()) == file_magic::bitcode;
@@ -1038,6 +1070,21 @@ InputFile *elf::createSharedFile(MemoryBufferRef MB, StringRef DefaultSoName) {
     return make<SharedFile<ELF64LE>>(MB, DefaultSoName);
   case ELF64BEKind:
     return make<SharedFile<ELF64BE>>(MB, DefaultSoName);
+  default:
+    llvm_unreachable("getELFKind");
+  }
+}
+
+InputFile *elf::createJustSymbolsFile(MemoryBufferRef MB) {
+  switch (getELFKind(MB)) {
+  case ELF32LEKind:
+    return make<JustSymbolsFile<ELF32LE>>(MB);
+  case ELF32BEKind:
+    return make<JustSymbolsFile<ELF32BE>>(MB);
+  case ELF64LEKind:
+    return make<JustSymbolsFile<ELF64LE>>(MB);
+  case ELF64BEKind:
+    return make<JustSymbolsFile<ELF64BE>>(MB);
   default:
     llvm_unreachable("getELFKind");
   }
@@ -1150,3 +1197,8 @@ template void BinaryFile::parse<ELF32LE>();
 template void BinaryFile::parse<ELF32BE>();
 template void BinaryFile::parse<ELF64LE>();
 template void BinaryFile::parse<ELF64BE>();
+
+template class elf::JustSymbolsFile<ELF32LE>;
+template class elf::JustSymbolsFile<ELF32BE>;
+template class elf::JustSymbolsFile<ELF64LE>;
+template class elf::JustSymbolsFile<ELF64BE>;

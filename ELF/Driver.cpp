@@ -396,8 +396,24 @@ void LinkerDriver::main(ArrayRef<const char *> ArgsArr, bool CanExitEarly) {
   }
 }
 
+static bool isJustSymbols(const Twine &Path) {
+  using namespace llvm::sys::fs;
+  return exists(Path) && !is_directory(Path);
+}
+
 static std::string getRpath(opt::InputArgList &Args) {
-  std::vector<StringRef> V = args::getStrings(Args, OPT_rpath);
+  std::vector<StringRef> V;
+  for (auto *Arg : Args) {
+    switch (Arg->getOption().getID()) {
+    case OPT_R:
+      if (isJustSymbols(Arg->getValue()))
+        break;
+      LLVM_FALLTHROUGH;
+    case OPT_rpath:
+      V.push_back(Arg->getValue());
+      break;
+    }
+  }
   return llvm::join(V.begin(), V.end(), ":");
 }
 
@@ -837,6 +853,24 @@ void LinkerDriver::createFiles(opt::InputArgList &Args) {
       }
       error(Twine("cannot find linker script ") + Arg->getValue());
       break;
+    case OPT_R:
+      if (!isJustSymbols(Arg->getValue()))
+        break;
+      LLVM_FALLTHROUGH;
+    // Handle a rarely-used, --just-symbols option.
+    //
+    // This option allows you to link your output against other existing
+    // program, so that if you load both the other program and your
+    // output to memory, your output can refer other program's symbols.
+    //
+    // What we are doing here is to read defined symbols from given ELF
+    // files and add them as absolute symbols.
+    case OPT_just_symbols: {
+      Optional<MemoryBufferRef> Buffer = readFile(Arg->getValue());
+      if (Buffer.hasValue())
+        Files.push_back(createJustSymbolsFile(*Buffer));
+      break;
+    }
     case OPT_as_needed:
       Config->AsNeeded = true;
       break;

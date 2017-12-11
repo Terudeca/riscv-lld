@@ -68,6 +68,7 @@ public:
     ArchiveKind,
     BitcodeKind,
     BinaryKind,
+    JustSymbolsKind,
   };
 
   Kind kind() const { return FileKind; }
@@ -123,7 +124,7 @@ public:
   ELFFileBase(Kind K, MemoryBufferRef M);
   static bool classof(const InputFile *F) {
     Kind K = F->kind();
-    return K == ObjKind || K == SharedKind;
+    return K == ObjKind || K == SharedKind || K == JustSymbolsKind;
   }
 
   llvm::object::ELFFile<ELFT> getObj() const {
@@ -328,9 +329,20 @@ public:
   template <class ELFT> void parse();
 };
 
+template <class ELFT> class JustSymbolsFile : public ELFFileBase<ELFT> {
+public:
+  explicit JustSymbolsFile(MemoryBufferRef M)
+      : ELFFileBase<ELFT>(InputFile::JustSymbolsKind, M) {}
+  static bool classof(const InputFile *F) {
+    return F->kind() == InputFile::JustSymbolsKind;
+  }
+  void parse();
+};
+
 InputFile *createObjectFile(MemoryBufferRef MB, StringRef ArchiveName = "",
                             uint64_t OffsetInArchive = 0);
 InputFile *createSharedFile(MemoryBufferRef MB, StringRef DefaultSoName);
+InputFile *createJustSymbolsFile(MemoryBufferRef MB);
 
 extern std::vector<BinaryFile *> BinaryFiles;
 extern std::vector<BitcodeFile *> BitcodeFiles;

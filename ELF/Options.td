@@ -153,6 +153,8 @@ defm image_base : Eq<"image-base">, HelpText<"Set the base address">;
 defm init: Eq<"init">, HelpText<"Specify an initializer function">,
   MetaVarName<"<symbol>">;
 
+defm just_symbols: Eq<"just-symbols">, HelpText<"Just link symbols">;
+
 defm library: Eq<"library">, HelpText<"Root name of library to use">,
   MetaVarName<"<libName>">;
 
@@ -250,6 +252,8 @@ def print_gc_sections: F<"print-gc-sections">,
 
 def print_map: F<"print-map">,
   HelpText<"Print a link map to the standard output">;
+
+def R: JoinedOrSeparate<["-"], "R">, HelpText<"Alias to --rpath or --just-symbols">;
 
 defm reproduce: Eq<"reproduce">,
   HelpText<"Dump linker invocation and input files for debugging">;
@@ -357,7 +361,6 @@ def alias_o_output2 : Separate<["--"], "output">, Alias<o>;
 def alias_pie_pic_executable: F<"pic-executable">, Alias<pie>;
 def alias_print_map_M: Flag<["-"], "M">, Alias<print_map>;
 def alias_relocatable_r: Flag<["-"], "r">, Alias<relocatable>;
-def alias_rpath_R: JoinedOrSeparate<["-"], "R">, Alias<rpath>;
 def alias_script_T: JoinedOrSeparate<["-"], "T">, Alias<script>;
 def alias_shared_Bshareable: F<"Bshareable">, Alias<shared>;
 def alias_soname_h: JoinedOrSeparate<["-"], "h">, Alias<soname>;
